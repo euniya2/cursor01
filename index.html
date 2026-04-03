@@ -190,24 +190,71 @@
       color: var(--text-muted);
     }
 
-    .shuffle-name {
-      font-size: clamp(1.5rem, 5vw, 2.25rem);
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      color: var(--text-muted);
-      min-height: 2.5em;
+    .roulette {
+      width: 100%;
+      max-width: 420px;
+      margin-top: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    .shuffle-name.spinning {
-      animation: pulse-soft 0.12s ease-in-out infinite alternate;
+    .roulette-window {
+      width: 100%;
+      height: 120px; /* item(40px) x 3 */
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.65);
+      border: 1px solid rgba(124, 108, 240, 0.18);
+      overflow: hidden;
+      box-shadow: 0 16px 50px rgba(124, 108, 240, 0.10);
+      position: relative;
     }
 
-    @keyframes pulse-soft {
-      from { opacity: 0.65; transform: scale(0.98); }
-      to { opacity: 1; transform: scale(1); }
+    .roulette-window::after {
+      content: "";
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      top: 50%;
+      height: 1px;
+      transform: translateY(-50%);
+      background: linear-gradient(90deg, rgba(124, 108, 240, 0), rgba(124, 108, 240, 0.65), rgba(124, 108, 240, 0));
+      pointer-events: none;
+    }
+
+    .roulette-track {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      will-change: transform;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .roulette-item {
+      height: 40px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 14px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text-muted);
+      opacity: 0.35;
+      transform: scale(0.98);
+      transition: opacity 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .roulette-item.is-active {
+      opacity: 1;
+      transform: scale(1.04);
+      color: var(--text);
+      filter: drop-shadow(0 8px 24px rgba(124, 108, 240, 0.18));
     }
 
     .winner-wrap {
@@ -306,7 +353,11 @@
 
     <div class="stage" id="stage" aria-live="polite">
       <p class="stage-hint" id="stageHint">여기에 당첨자가 표시됩니다</p>
-      <div class="shuffle-name" id="shuffleName" hidden></div>
+      <div class="roulette" id="roulette" hidden>
+        <div class="roulette-window" id="rouletteWindow" aria-hidden="true">
+          <div class="roulette-track" id="rouletteTrack"></div>
+        </div>
+      </div>
       <div class="winner-wrap" id="winnerWrap">
         <span class="winner-label">오늘의 발표자</span>
         <span class="winner-name" id="winnerName"></span>
@@ -322,7 +373,9 @@
       const btnPick = document.getElementById("btnPick");
       const btnClear = document.getElementById("btnClear");
       const stageHint = document.getElementById("stageHint");
-      const shuffleName = document.getElementById("shuffleName");
+      const roulette = document.getElementById("roulette");
+      const rouletteWindow = document.getElementById("rouletteWindow");
+      const rouletteTrack = document.getElementById("rouletteTrack");
       const winnerWrap = document.getElementById("winnerWrap");
       const winnerName = document.getElementById("winnerName");
       const toast = document.getElementById("toast");
@@ -333,6 +386,7 @@
       let confettiPieces = [];
       let confettiUntil = 0;
       let rafId = null;
+      let rouletteRafId = null;
       let running = false;
 
       function resizeCanvas() {
@@ -520,37 +574,105 @@
         return 1 - Math.pow(1 - t, 3);
       }
 
-      function runShuffle(names, finalName, onDone) {
+      function easeOutQuint(t) {
+        return 1 - Math.pow(1 - t, 5);
+      }
+
+      function runRoulette(names, finalName, onDone) {
         winnerWrap.classList.remove("show");
         stageHint.hidden = true;
-        shuffleName.hidden = false;
-        shuffleName.classList.add("spinning");
+        roulette.hidden = false;
 
-        const totalMs = 2800;
-        const start = performance.now();
+        if (rouletteRafId !== null) cancelAnimationFrame(rouletteRafId);
+        rouletteRafId = null;
+
+        rouletteTrack.innerHTML = "";
+
+        const base = names.slice();
+        // Fisher-Yates shuffle
+        for (let i = base.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const tmp = base[i];
+          base[i] = base[j];
+          base[j] = tmp;
+        }
+
+        // finalName이 base에 여러 개일 수 있으니 임의의 인덱스를 선택
+        const indices = [];
+        for (let i = 0; i < base.length; i++) {
+          if (base[i] === finalName) indices.push(i);
+        }
+        if (indices.length === 0) {
+          base.push(finalName);
+          indices.push(base.length - 1);
+        }
+        const baseLen = base.length;
+        const finalIndex = indices[Math.floor(Math.random() * indices.length)];
+
+        // “로또공처럼” 여러 바퀴 돌다가 마지막에 딱 멈추도록 스크롤 양을 정함
+        const cycles = 8 + Math.floor(Math.random() * 5);
+        const totalScrollItems = baseLen * cycles + finalIndex;
+        const extra = baseLen * 2;
+        const trackLen = totalScrollItems + extra + 1;
+
+        for (let i = 0; i < trackLen; i++) {
+          const item = document.createElement("div");
+          item.className = "roulette-item";
+          item.textContent = base[i % baseLen];
+          rouletteTrack.appendChild(item);
+        }
+
+        const items = rouletteTrack.querySelectorAll(".roulette-item");
+        const itemHeight = items[0]?.getBoundingClientRect().height || 40;
+        const windowHeight = rouletteWindow.getBoundingClientRect().height || itemHeight * 3;
+        const centerOffset = (windowHeight - itemHeight) / 2;
+
+        const startTranslate = centerOffset; // index 0이 창 가운데에 오도록 시작
+        const targetTranslate = -totalScrollItems * itemHeight + centerOffset; // finalIndex에 정확히 착지
+
+        let start = null;
+        let prevActive = -1;
+
+        rouletteTrack.style.transform = `translate3d(0, ${startTranslate}px, 0)`;
+
+        function setActive(index) {
+          const clamped = Math.max(0, Math.min(items.length - 1, index));
+          if (clamped === prevActive) return;
+          if (prevActive >= 0 && items[prevActive]) items[prevActive].classList.remove("is-active");
+          if (items[clamped]) items[clamped].classList.add("is-active");
+          prevActive = clamped;
+        }
+
+        // 초기 활성 아이템
+        setActive(0);
+
+        const totalMs = 3600;
 
         function frame(now) {
+          if (start === null) start = now;
           const t = Math.min(1, (now - start) / totalMs);
-          const eased = easeOutCubic(t);
-          const interval = 30 + eased * 220;
-          if (!frame.last || now - frame.last >= interval) {
-            frame.last = now;
-            if (t < 0.92) {
-              shuffleName.textContent = names[Math.floor(Math.random() * names.length)];
-            } else {
-              shuffleName.textContent = finalName;
-            }
-          }
+          const eased = easeOutQuint(t);
+          const curTranslate = startTranslate + (targetTranslate - startTranslate) * eased;
+
+          rouletteTrack.style.transform = `translate3d(0, ${curTranslate}px, 0)`;
+
+          // 현재 프레임에서 “가운데에 보이는 아이템” 찾기
+          const curIndex = Math.round((centerOffset - curTranslate) / itemHeight);
+          setActive(curIndex);
+
           if (t < 1) {
-            requestAnimationFrame(frame);
+            rouletteRafId = requestAnimationFrame(frame);
           } else {
-            shuffleName.classList.remove("spinning");
-            shuffleName.hidden = true;
+            rouletteTrack.style.transform = `translate3d(0, ${targetTranslate}px, 0)`;
+            setActive(totalScrollItems);
+
+            roulette.hidden = true;
+            rouletteRafId = null;
             onDone();
           }
         }
-        frame.last = 0;
-        requestAnimationFrame(frame);
+
+        rouletteRafId = requestAnimationFrame(frame);
       }
 
       btnPick.addEventListener("click", () => {
@@ -569,7 +691,7 @@
         btnPick.disabled = true;
         const pick = names[Math.floor(Math.random() * names.length)];
 
-        runShuffle(names, pick, () => {
+        runRoulette(names, pick, () => {
           winnerName.textContent = pick;
           winnerWrap.classList.add("show");
           launchFireworks();
@@ -582,8 +704,10 @@
       btnClear.addEventListener("click", () => {
         roster.value = "";
         stageHint.hidden = false;
-        shuffleName.hidden = true;
-        shuffleName.textContent = "";
+        roulette.hidden = true;
+        rouletteTrack.innerHTML = "";
+        if (rouletteRafId !== null) cancelAnimationFrame(rouletteRafId);
+        rouletteRafId = null;
         winnerWrap.classList.remove("show");
         winnerName.textContent = "";
         particles = [];
