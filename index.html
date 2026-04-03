@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>랜덤 발표자 뽑기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-1: #e5e6fa;        /* 은은한 라벤더 */
+      --bg-2: #bcffe4;        /* 고급스러운 민트 */
+      --bg-3: #f8f2ff;        /* 라벤더+화이트 혼합 */
+      --glass: rgba(255, 255, 255, 0.72);
+      --glass-border: rgba(255, 255, 255, 0.95);
+      --text: #1d1d1f;
+      --text-muted: rgba(29, 29, 31, 0.45);
+      --accent: #7c6cf0;
+      --accent-soft: rgba(124, 108, 240, 0.12);
+      --shadow: 0 24px 80px rgba(124, 108, 240, 0.10), 0 8px 24px rgba(188, 255, 228, 0.08);
+      --radius: 20px;
+      --radius-sm: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      min-height: 100%;
+    }
+
+    body {
+      font-family: "Nanum Gothic", "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background: linear-gradient(145deg, var(--bg-1) 0%, var(--bg-2) 45%, var(--bg-3) 100%);
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    #fx {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 25;
+    }
+
+    .wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 48px 24px 64px;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      font-size: 0.9375rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .card {
+      background: var(--glass);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      letter-spacing: 0.02em;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      padding: 16px 18px;
+      font-size: 1rem;
+      line-height: 1.5;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--text);
+      resize: vertical;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: rgba(124, 108, 240, 0.45);
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .actions {
+      margin-top: 22px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      flex: 1;
+      min-width: 120px;
+      padding: 16px 24px;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #8b7cf5 0%, #6b5ae0 100%);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(107, 90, 224, 0.35);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 6px 28px rgba(107, 90, 224, 0.45);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.6);
+      color: var(--text-muted);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--text);
+    }
+
+    .stage {
+      margin-top: 32px;
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.25) 100%);
+      border: 1px dashed rgba(124, 108, 240, 0.2);
+      padding: 32px 20px;
+    }
+
+    .stage-hint {
+      font-size: 0.9375rem;
+      color: var(--text-muted);
+    }
+
+    .shuffle-name {
+      font-size: clamp(1.5rem, 5vw, 2.25rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text-muted);
+      min-height: 2.5em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shuffle-name.spinning {
+      animation: pulse-soft 0.12s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse-soft {
+      from { opacity: 0.65; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .winner-wrap {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .winner-wrap.show {
+      display: flex;
+      animation: winner-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes winner-pop {
+      0% {
+        opacity: 0;
+        transform: scale(0.5) translateY(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .winner-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+    }
+
+    .winner-name {
+      font-size: clamp(2rem, 10vw, 3.25rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #5b4fcf 0%, #c084fc 40%, #f472b6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 4px 24px rgba(124, 108, 240, 0.25));
+      animation: winner-glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes winner-glow {
+      from { filter: drop-shadow(0 4px 20px rgba(124, 108, 240, 0.2)); }
+      to { filter: drop-shadow(0 8px 36px rgba(192, 132, 252, 0.35)); }
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(29, 29, 31, 0.88);
+      color: #fff;
+      padding: 14px 22px;
+      border-radius: 14px;
+      font-size: 0.875rem;
+      z-index: 40;
+      opacity: 0;
+      transition: transform 0.35s cubic-bezier(0.34, 1.2, 0.64, 1), opacity 0.35s;
+      pointer-events: none;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="fx" aria-hidden="true"></canvas>
+
+  <div class="wrap">
+    <header>
+      <h1>랜덤 발표자 뽑기</h1>
+      <p>명단을 입력하고 뽑기를 눌러 주세요</p>
+    </header>
+
+    <div class="card">
+      <label for="roster">학생 명단</label>
+      <textarea
+        id="roster"
+        placeholder="한 줄에 한 명, 또는 쉼표로 구분해 입력하세요&#10;예: 김민수, 이지은&#10;박서준"
+      ></textarea>
+      <div class="actions">
+        <button type="button" class="btn-primary" id="btnPick">뽑기</button>
+        <button type="button" class="btn-ghost" id="btnClear">초기화</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage" aria-live="polite">
+      <p class="stage-hint" id="stageHint">여기에 당첨자가 표시됩니다</p>
+      <div class="shuffle-name" id="shuffleName" hidden></div>
+      <div class="winner-wrap" id="winnerWrap">
+        <span class="winner-label">오늘의 발표자</span>
+        <span class="winner-name" id="winnerName"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    (function () {
+      const roster = document.getElementById("roster");
+      const btnPick = document.getElementById("btnPick");
+      const btnClear = document.getElementById("btnClear");
+      const stageHint = document.getElementById("stageHint");
+      const shuffleName = document.getElementById("shuffleName");
+      const winnerWrap = document.getElementById("winnerWrap");
+      const winnerName = document.getElementById("winnerName");
+      const toast = document.getElementById("toast");
+      const canvas = document.getElementById("fx");
+      const ctx = canvas.getContext("2d");
+
+      let particles = [];
+      let confettiPieces = [];
+      let confettiUntil = 0;
+      let rafId = null;
+      let running = false;
+
+      function resizeCanvas() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+        canvas.style.width = window.innerWidth + "px";
+        canvas.style.height = window.innerHeight + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+      resizeCanvas();
+
+      const pastelColors = [
+        "#a78bfa", "#f472b6", "#67e8f9", "#86efac", "#fcd34d",
+        "#c4b5fd", "#fb923c", "#7dd3fc", "#f9a8d4", "#6ee7b7"
+      ];
+
+      function randomColor() {
+        return pastelColors[Math.floor(Math.random() * pastelColors.length)];
+      }
+
+      function burst(x, y, count) {
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+          const speed = 4 + Math.random() * 8;
+          particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1,
+            decay: 0.007 + Math.random() * 0.01,
+            size: 3 + Math.random() * 5,
+            color: randomColor(),
+            gravity: 0.12 + Math.random() * 0.08
+          });
+        }
+      }
+
+      function sparkRing(x, y) {
+        const n = 28;
+        for (let i = 0; i < n; i++) {
+          const a = (Math.PI * 2 * i) / n;
+          particles.push({
+            x, y,
+            vx: Math.cos(a) * (6 + Math.random() * 4),
+            vy: Math.sin(a) * (6 + Math.random() * 4),
+            life: 1,
+            decay: 0.005,
+            size: 4,
+            color: randomColor(),
+            gravity: 0.05
+          });
+        }
+      }
+
+      function renderFX(now) {
+        const clock = typeof now === "number" ? now : performance.now();
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += p.gravity;
+          p.vx *= 0.985;
+          p.life -= p.decay;
+          if (p.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          ctx.globalAlpha = p.life;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        if (clock < confettiUntil && confettiPieces.length) {
+          for (const c of confettiPieces) {
+            c.x += c.vx;
+            c.y += c.vy;
+            c.rot += c.vr;
+            if (c.y > h + 40) {
+              c.y = -20;
+              c.x = Math.random() * w;
+            }
+            ctx.save();
+            ctx.translate(c.x, c.y);
+            ctx.rotate(c.rot);
+            ctx.fillStyle = c.color;
+            ctx.globalAlpha = 0.88;
+            ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+            ctx.restore();
+          }
+        }
+        ctx.globalAlpha = 1;
+
+        const active =
+          particles.length > 0 ||
+          (clock < confettiUntil && confettiPieces.length > 0);
+        if (active) {
+          rafId = requestAnimationFrame(renderFX);
+        } else {
+          rafId = null;
+          confettiPieces = [];
+        }
+      }
+
+      function ensureFXLoop() {
+        if (rafId === null) rafId = requestAnimationFrame(renderFX);
+      }
+
+      function launchFireworks() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const cx = w * 0.5;
+        const cy = h * 0.3;
+        burst(cx, cy, 56);
+        sparkRing(cx, cy);
+        burst(w * 0.18, h * 0.2, 36);
+        burst(w * 0.82, h * 0.22, 36);
+        ensureFXLoop();
+        const bursts = 5 + Math.floor(Math.random() * 4);
+        for (let b = 0; b < bursts; b++) {
+          setTimeout(() => {
+            const x = w * (0.15 + Math.random() * 0.7);
+            const y = h * (0.12 + Math.random() * 0.45);
+            burst(x, y, 40 + Math.floor(Math.random() * 25));
+            sparkRing(x, y);
+            ensureFXLoop();
+          }, b * 180);
+        }
+        setTimeout(() => {
+          const cx = w * 0.5;
+          const cy = h * 0.35;
+          burst(cx, cy, 60);
+          sparkRing(cx, cy);
+          ensureFXLoop();
+        }, bursts * 180 + 100);
+      }
+
+      function confettiRain(durationMs) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        confettiUntil = performance.now() + durationMs;
+        confettiPieces = [];
+        for (let i = 0; i < 80; i++) {
+          confettiPieces.push({
+            x: Math.random() * w,
+            y: -20 - Math.random() * h * 0.5,
+            vy: 2 + Math.random() * 4,
+            vx: (Math.random() - 0.5) * 2,
+            rot: Math.random() * Math.PI * 2,
+            vr: (Math.random() - 0.5) * 0.2,
+            w: 6 + Math.random() * 8,
+            h: 4 + Math.random() * 6,
+            color: randomColor()
+          });
+        }
+        ensureFXLoop();
+      }
+
+      function parseNames(text) {
+        return text
+          .split(/[\n,，、]+/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+
+      function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add("show");
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove("show"), 2800);
+      }
+
+      function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+      }
+
+      function runShuffle(names, finalName, onDone) {
+        winnerWrap.classList.remove("show");
+        stageHint.hidden = true;
+        shuffleName.hidden = false;
+        shuffleName.classList.add("spinning");
+
+        const totalMs = 2800;
+        const start = performance.now();
+
+        function frame(now) {
+          const t = Math.min(1, (now - start) / totalMs);
+          const eased = easeOutCubic(t);
+          const interval = 30 + eased * 220;
+          if (!frame.last || now - frame.last >= interval) {
+            frame.last = now;
+            if (t < 0.92) {
+              shuffleName.textContent = names[Math.floor(Math.random() * names.length)];
+            } else {
+              shuffleName.textContent = finalName;
+            }
+          }
+          if (t < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            shuffleName.classList.remove("spinning");
+            shuffleName.hidden = true;
+            onDone();
+          }
+        }
+        frame.last = 0;
+        requestAnimationFrame(frame);
+      }
+
+      btnPick.addEventListener("click", () => {
+        if (running) return;
+        const names = parseNames(roster.value);
+        if (names.length === 0) {
+          showToast("학생 이름을 한 명 이상 입력해 주세요.");
+          return;
+        }
+        if (names.length === 1) {
+          showToast("비교할 대상이 없습니다. 두 명 이상 입력해 주세요.");
+          return;
+        }
+
+        running = true;
+        btnPick.disabled = true;
+        const pick = names[Math.floor(Math.random() * names.length)];
+
+        runShuffle(names, pick, () => {
+          winnerName.textContent = pick;
+          winnerWrap.classList.add("show");
+          launchFireworks();
+          confettiRain(3500);
+          running = false;
+          btnPick.disabled = false;
+        });
+      });
+
+      btnClear.addEventListener("click", () => {
+        roster.value = "";
+        stageHint.hidden = false;
+        shuffleName.hidden = true;
+        shuffleName.textContent = "";
+        winnerWrap.classList.remove("show");
+        winnerName.textContent = "";
+        particles = [];
+        confettiPieces = [];
+        confettiUntil = 0;
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        rafId = null;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        resizeCanvas();
+      });
+    })();
+  </script>
+</body>
+</html>
